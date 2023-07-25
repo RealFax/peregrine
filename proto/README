@@ -1,0 +1,6 @@
+---------------------------------------
+| op_code (4 bytes) | payload (bytes) |
+---------------------------------------
+
+op_code: uin32
+payload: unknown, default JSON
