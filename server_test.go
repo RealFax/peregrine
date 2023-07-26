@@ -12,7 +12,7 @@ import (
 )
 
 func Handler(req *qWebsocket.HandlerParams) {
-	// pong
+	// echo
 	wsutil.WriteServerText(req.Writer, req.Request)
 }
 
@@ -38,6 +38,7 @@ func TestServer_ListenAndServer(t *testing.T) {
 		http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 			w.Write([]byte(fmt.Sprintf("Online: %d", server.Online())))
 		})
+		t.Log("[+] Monitor server: http://localhost:9090")
 		http.ListenAndServe("localhost:9090", nil)
 	}()
 
