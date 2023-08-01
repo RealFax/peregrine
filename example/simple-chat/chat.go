@@ -21,7 +21,7 @@ const (
 	ProtoQuitRoom
 	ProtoSendMessage
 
-	ProtoRecvMessage = iota + 1000
+	ProtoRecvMessage = iota - ProtoSendMessage + 1000
 )
 
 type Proto struct {
@@ -123,9 +123,15 @@ func (s *service) sendMessage(req *proto.Request[Proto]) {
 
 func main() {
 
-	engine := proto.New[Proto, ProtoType](func() proto.Proto[Proto, ProtoType] {
+	instancePool := proto.NewInstancePool[Proto, ProtoType](func() proto.Proto[Proto, ProtoType] {
 		return new(Proto)
 	})
+
+	engine := proto.New[Proto, ProtoType](instancePool.Alloc)
+	engine.RegisterDestroyProto(func(_ *qWebsocket.HandlerParams, proto proto.Proto[Proto, ProtoType]) {
+		instancePool.Free(proto)
+	})
+
 	s := &service{}
 
 	engine.Register(ProtoJoinRoom, s.joinRoom)

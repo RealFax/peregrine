@@ -6,12 +6,17 @@ import (
 	"log"
 )
 
-type HandlerFunc[T any] func(*Request[T])
+type (
+	HandlerFunc[T any]                    func(*Request[T])
+	NewProtoFunc[T any, K comparable]     func() Proto[T, K]
+	DestroyProtoFunc[T any, K comparable] func(params *qWebsocket.HandlerParams, proto Proto[T, K])
+)
 
 type Engine[T any, K comparable] struct {
-	codec    Codec[T, K]
-	handlers map[K]HandlerFunc[T]
-	newProto func() Proto[T, K]
+	codec        Codec[T, K]
+	handlers     map[K]HandlerFunc[T]
+	newProto     NewProtoFunc[T, K]
+	destroyProto DestroyProtoFunc[T, K]
 }
 
 // Handler
@@ -19,6 +24,10 @@ type Engine[T any, K comparable] struct {
 // impl the handler of q-websocket
 func (e *Engine[T, K]) Handler(params *qWebsocket.HandlerParams) {
 	proto := e.newProto()
+
+	if e.destroyProto != nil {
+		defer e.destroyProto(params, proto)
+	}
 
 	if err := e.codec.Unmarshal(bytes.NewReader(params.Request), proto); err != nil {
 		log.Println("Proto engine codec error:", err)
@@ -45,4 +54,8 @@ func (e *Engine[T, K]) Register(key K, handler HandlerFunc[T]) {
 
 func (e *Engine[T, K]) RegisterCodec(codec Codec[T, K]) {
 	e.codec = codec
+}
+
+func (e *Engine[T, K]) RegisterDestroyProto(handler DestroyProtoFunc[T, K]) {
+	e.destroyProto = handler
 }
