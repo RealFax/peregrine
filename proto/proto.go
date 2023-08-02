@@ -35,6 +35,7 @@ type Resetter interface {
 func New[T any, K comparable](newProto NewProtoFunc[T, K]) *Engine[T, K] {
 	return &Engine[T, K]{
 		codec:    &CodecJSON[T, K]{},
+		brokers:  make([]BrokerFunc[T], 0),
 		handlers: make(map[K]HandlerFunc[T]),
 		newProto: newProto,
 	}
