@@ -140,7 +140,7 @@ func main() {
 
 	server := qWebsocket.NewServer(
 		"tcp://127.0.0.1:8080",
-		qWebsocket.WithHandler(engine.Handler),
+		qWebsocket.WithHandler(engine.UseHandler()),
 		qWebsocket.WithOnCloseHandler(func(conn *qWebsocket.GNetUpgraderConn, _ error) {
 			s.offline(conn.ID)
 		}),

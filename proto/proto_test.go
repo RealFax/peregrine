@@ -34,7 +34,7 @@ func init() {
 func TestEngine_Handler(t *testing.T) {
 	server := qWebsocket.NewServer(
 		"tcp://127.0.0.1:8080",
-		qWebsocket.WithHandler(engine.Handler),
+		qWebsocket.WithHandler(engine.UseHandler()),
 	)
 
 	if err := server.ListenAndServer(gnet.WithMulticore(true)); err != nil {

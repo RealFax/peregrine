@@ -11,7 +11,7 @@ type Request[T any] struct {
 	OpCode     ws.OpCode
 	Writer     io.Writer
 	Conn       *qWebsocket.GNetUpgraderConn
-	Request    T
+	Request    *T
 	RawRequest []byte
 }
 
