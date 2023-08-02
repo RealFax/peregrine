@@ -118,6 +118,7 @@ func (e *Engine[T, K]) handler(params *qWebsocket.HandlerParams) {
 			return
 		}
 
+		os.Stderr.WriteString("\nproto panic: ")
 		// default recovery handler
 		switch val := pErr.(type) {
 		case error:
