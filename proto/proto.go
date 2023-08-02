@@ -33,10 +33,15 @@ type Resetter interface {
 //
 // - newProto should be return a Proto instance
 func New[T any, K comparable](newProto NewProtoFunc[T, K]) *Engine[T, K] {
-	return &Engine[T, K]{
+	engine := &Engine[T, K]{
 		codec:    &CodecJSON[T, K]{},
 		brokers:  make([]BrokerFunc[T], 0),
 		handlers: make(map[K]HandlerFunc[T]),
 		newProto: newProto,
 	}
+
+	engine.SetMaxPayloadSize(512 * KB)
+	engine.SetMaxErrorCount(3)
+
+	return engine
 }

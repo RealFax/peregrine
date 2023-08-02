@@ -21,6 +21,8 @@ type (
 )
 
 type Engine[T any, K comparable] struct {
+	Config
+
 	state atomic.Int32
 
 	codec Codec[T, K]
@@ -55,7 +57,7 @@ func (e *Engine[T, K]) handlerError(params *qWebsocket.HandlerParams, err error)
 	}
 
 	count := atomic.AddUint32(countAddr, 1)
-	if count == 3 {
+	if count >= e.MaxErrorCount() {
 		defer params.WsConn.Close()
 		ws.WriteFrame(
 			params.Writer,
@@ -71,6 +73,12 @@ func (e *Engine[T, K]) handlerError(params *qWebsocket.HandlerParams, err error)
 //
 // Codec.Unmarshal proto -> find handler -> call brokers -> call handler
 func (e *Engine[T, K]) handler(params *qWebsocket.HandlerParams) {
+	// check request payload size
+	if e.MaxPayloadSize() != 0 && uint64(len(params.Request)) >= e.MaxPayloadSize() {
+		e.handlerError(params, errors.Errorf("request too large, payload size: %d", len(params.Request)))
+		return
+	}
+
 	proto := e.newProto()
 
 	// if registered destroyProto, defer called
