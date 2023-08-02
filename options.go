@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"github.com/gobwas/ws"
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/panjf2000/ants/v2"
+	"github.com/panjf2000/gnet/v2"
 	"net"
+	"time"
 )
 
 // ---------- server options ---------- //
@@ -27,6 +30,14 @@ func WithWorkerPool(size int, options ants.Options) OptionFunc {
 func WithUpgrader(upgrader *ws.Upgrader) OptionFunc {
 	return func(s *Server) {
 		s.upgrader = upgrader
+	}
+}
+
+func WithConnTimeout(timeout time.Duration) OptionFunc {
+	return func(s *Server) {
+		s.keepConnTable = ttlcache.New[string, gnet.Conn](
+			ttlcache.WithTTL[string, gnet.Conn](timeout),
+		)
 	}
 }
 

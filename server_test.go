@@ -18,7 +18,7 @@ func Handler(req *qWebsocket.HandlerParams) {
 
 func TestServer_ListenAndServer(t *testing.T) {
 	server := qWebsocket.NewServer(
-		"tcp://127.0.0.1:8080",
+		"tcp://127.0.0.1:9010",
 		qWebsocket.WithUpgrader(&ws.Upgrader{
 			OnRequest: qWebsocket.RequestProxy(func(req *url.URL) error {
 				return nil
