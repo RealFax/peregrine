@@ -47,6 +47,12 @@ func WithOnCloseHandler(handler OnCloseHandlerFunc) OptionFunc {
 	}
 }
 
+func WithOnPingHandler(handler OnPingHandlerFunc) OptionFunc {
+	return func(s *Server) {
+		s.onPingHandler = handler
+	}
+}
+
 func WithHandler(handler HandlerFunc) OptionFunc {
 	return func(s *Server) {
 		s.handler = handler

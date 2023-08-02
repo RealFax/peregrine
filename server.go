@@ -23,6 +23,7 @@ type Server struct {
 	upgrader       *ws.Upgrader
 	keepConnTable  *ttlcache.Cache[string, gnet.Conn]
 	onCloseHandler OnCloseHandlerFunc
+	onPingHandler  OnPingHandlerFunc
 	handler        HandlerFunc
 }
 
@@ -52,12 +53,16 @@ func (s *Server) withDefault() {
 		WithOnCloseHandler(EmptyOnCloseHandler)(s)
 	}
 
+	if s.onPingHandler == nil {
+		WithOnPingHandler(DefaultOnPingHandler)(s)
+	}
+
 	if s.handler == nil {
 		WithHandler(EmptyHandler)(s)
 	}
 }
 
-func (s *Server) closeWS(conn *GNetUpgraderConn, statusCode ws.StatusCode, reason error) error {
+func (s *Server) closeWS(conn *Conn, statusCode ws.StatusCode, reason error) error {
 	defer s.onCloseHandler(conn, reason)
 	return ws.WriteFrame(conn, ws.NewCloseFrame(ws.NewCloseFrameBody(statusCode, func() string {
 		if reason != nil {
@@ -75,7 +80,7 @@ func (s *Server) setupTimeoutHandler() {
 		item *ttlcache.Item[string, gnet.Conn],
 	) {
 		atomic.AddInt64(&s.connNum, -1)
-		upgraderConn, ok := item.Value().Context().(*GNetUpgraderConn)
+		upgraderConn, ok := item.Value().Context().(*Conn)
 		if !ok {
 			item.Value().Close()
 			return
@@ -137,7 +142,7 @@ func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 		c.SetContext(NewUpgraderConn(c))
 	}
 
-	upgraderConn, ok := c.Context().(*GNetUpgraderConn)
+	upgraderConn, ok := c.Context().(*Conn)
 	if !ok {
 		log.Printf("[-] invalid context, remote addr: %s", c.RemoteAddr())
 		return gnet.None
@@ -167,7 +172,10 @@ func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 	for _, message := range messages {
 		switch message.OpCode {
 		case ws.OpPing:
-			wsutil.WriteServerMessage(upgraderConn, ws.OpPong, nil)
+			// async handle
+			s.workerPool.Submit(func() {
+				s.onPingHandler(upgraderConn)
+			})
 			upgraderConn.UpdateActive()
 		case ws.OpText, ws.OpBinary:
 			// async handle
@@ -189,7 +197,7 @@ func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 	return gnet.None
 }
 
-func (s *Server) ListenAndServer(opts ...gnet.Option) error {
+func (s *Server) ListenAndServe(opts ...gnet.Option) error {
 	s.setupTimeoutHandler()
 	return gnet.Run(s, s.addr, opts...)
 }

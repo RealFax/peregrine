@@ -141,13 +141,13 @@ func main() {
 	server := qWebsocket.NewServer(
 		"tcp://127.0.0.1:8080",
 		qWebsocket.WithHandler(engine.UseHandler()),
-		qWebsocket.WithOnCloseHandler(func(conn *qWebsocket.GNetUpgraderConn, _ error) {
+		qWebsocket.WithOnCloseHandler(func(conn *qWebsocket.Conn, _ error) {
 			s.offline(conn.ID)
 		}),
 	)
 
 	go func() {
-		if err := server.ListenAndServer(gnet.WithMulticore(true)); err != nil {
+		if err := server.ListenAndServe(gnet.WithMulticore(true)); err != nil {
 			fmt.Println("[-] gnet error:", err)
 		}
 	}()

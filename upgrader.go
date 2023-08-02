@@ -13,7 +13,8 @@ var (
 	emptyUpgrader = &ws.Upgrader{}
 )
 
-type GNetUpgraderConn struct {
+// Conn is upgraded websocket conn
+type Conn struct {
 	gnet.Conn
 	LastActive      int64 // atomic
 	successUpgraded bool
@@ -22,23 +23,24 @@ type GNetUpgraderConn struct {
 	ctx context.Context
 }
 
-func (c *GNetUpgraderConn) Context() context.Context {
+func (c *Conn) Context() context.Context {
 	return c.ctx
 }
 
-func (c *GNetUpgraderConn) SetContext(ctx context.Context) {
+func (c *Conn) SetContext(ctx context.Context) {
 	c.ctx = ctx
 }
 
-func (c *GNetUpgraderConn) UpdateActive() {
+func (c *Conn) UpdateActive() {
 	atomic.StoreInt64(&c.LastActive, time.Now().Unix())
 }
 
-func NewUpgraderConn(conn gnet.Conn) *GNetUpgraderConn {
-	return &GNetUpgraderConn{
+func NewUpgraderConn(conn gnet.Conn) *Conn {
+	return &Conn{
 		Conn:            conn,
 		LastActive:      time.Now().Unix(),
 		successUpgraded: false,
 		ID:              uuid.New().String(),
+		ctx:             context.Background(),
 	}
 }

@@ -4,13 +4,14 @@ import (
 	"bytes"
 	qWebsocket "github.com/RealFax/q-websocket"
 	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 	"io"
 )
 
 type Request[T any] struct {
 	OpCode     ws.OpCode
 	Writer     io.Writer
-	Conn       *qWebsocket.GNetUpgraderConn
+	Conn       *qWebsocket.Conn
 	Request    *T
 	RawRequest []byte
 }
@@ -20,13 +21,14 @@ func (t Request[T]) Reader() io.Reader {
 }
 
 func (t Request[T]) WriteText(p []byte) error {
-	return ws.WriteFrame(t.Writer, ws.NewTextFrame(p))
+	return wsutil.WriteServerMessage(t.Writer, ws.OpText, p)
 }
 
 func (t Request[T]) WriteBinary(p []byte) error {
-	return ws.WriteFrame(t.Writer, ws.NewBinaryFrame(p))
+	return wsutil.WriteServerMessage(t.Writer, ws.OpBinary, p)
 }
 
 func (t Request[T]) WriteClose(statusCode ws.StatusCode, reason string) error {
-	return ws.WriteFrame(t.Writer, ws.NewCloseFrame(ws.NewCloseFrameBody(statusCode, reason)))
+	defer t.Conn.Close()
+	return wsutil.WriteServerMessage(t.Writer, ws.OpClose, ws.NewCloseFrameBody(statusCode, reason))
 }
