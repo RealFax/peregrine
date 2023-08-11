@@ -16,8 +16,8 @@ var (
 // Conn is upgraded websocket conn
 type Conn struct {
 	gnet.Conn
-	LastActive      int64 // atomic
-	successUpgraded bool
+	LastActive      *atomic.Int64 // atomic
+	successUpgraded *atomic.Bool
 	ID              string
 
 	ctx context.Context
@@ -32,14 +32,16 @@ func (c *Conn) SetContext(ctx context.Context) {
 }
 
 func (c *Conn) UpdateActive() {
-	atomic.StoreInt64(&c.LastActive, time.Now().Unix())
+	c.LastActive.Store(time.Now().Unix())
 }
 
 func NewUpgraderConn(conn gnet.Conn) *Conn {
+	lastActive := &atomic.Int64{}
+	lastActive.Store(time.Now().Unix())
 	return &Conn{
 		Conn:            conn,
-		LastActive:      time.Now().Unix(),
-		successUpgraded: false,
+		LastActive:      lastActive,
+		successUpgraded: &atomic.Bool{},
 		ID:              uuid.New().String(),
 		ctx:             context.Background(),
 	}

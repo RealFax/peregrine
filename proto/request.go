@@ -2,6 +2,7 @@ package proto
 
 import (
 	"bytes"
+	"context"
 	qWebsocket "github.com/RealFax/q-websocket"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -9,6 +10,7 @@ import (
 )
 
 type Request[T any] struct {
+	Context    context.Context
 	OpCode     ws.OpCode
 	Writer     io.Writer
 	Conn       *qWebsocket.Conn

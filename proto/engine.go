@@ -99,6 +99,7 @@ func (e *Engine[T, K]) handler(params *qWebsocket.HandlerParams) {
 	}
 
 	req := &Request[T]{
+		Context:    context.Background(),
 		OpCode:     params.OpCode,
 		Writer:     params.Writer,
 		Conn:       params.WsConn,
@@ -142,6 +143,7 @@ func (e *Engine[T, K]) handler(params *qWebsocket.HandlerParams) {
 	}()
 
 	handler(req)
+
 }
 
 func (e *Engine[T, K]) UseHandler() qWebsocket.HandlerFunc {
