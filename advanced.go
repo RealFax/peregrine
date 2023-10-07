@@ -1,7 +1,7 @@
 package qWebsocket
 
 import (
-	"github.com/RealFax/q-websocket/common/hack"
+	"github.com/RealFax/q-websocket/internal/hack"
 	"github.com/gobwas/ws"
 	"net/http"
 	"net/url"

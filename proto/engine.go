@@ -6,7 +6,6 @@ import (
 	qWebsocket "github.com/RealFax/q-websocket"
 	"github.com/gobwas/ws"
 	"github.com/pkg/errors"
-	"log"
 	"os"
 	"runtime/debug"
 	"sync/atomic"
@@ -25,6 +24,8 @@ type Engine[T any, K comparable] struct {
 
 	state atomic.Int32
 
+	logger qWebsocket.Logger
+
 	codec Codec[T, K]
 
 	brokers []BrokerFunc[T]
@@ -42,7 +43,7 @@ type Engine[T any, K comparable] struct {
 }
 
 func (e *Engine[T, K]) handlerError(params *qWebsocket.HandlerParams, err error) {
-	log.Printf("proto handler error: %s\n", err.Error())
+	e.logger.Errorf("proto: handler error: %s\n", err.Error())
 
 	countAddr, ok := params.WsConn.Context().Value("ERR_COUNT").(*uint32)
 	if !ok {
@@ -144,6 +145,10 @@ func (e *Engine[T, K]) handler(params *qWebsocket.HandlerParams) {
 
 	handler(req)
 
+}
+
+func (e *Engine[T, K]) UseLogger(logger qWebsocket.Logger) {
+	e.logger = logger
 }
 
 func (e *Engine[T, K]) UseHandler() qWebsocket.HandlerFunc {

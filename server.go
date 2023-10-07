@@ -8,7 +8,6 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"github.com/panjf2000/gnet/v2"
 	"github.com/pkg/errors"
-	"log"
 	"sync/atomic"
 	"time"
 )
@@ -22,6 +21,7 @@ type Server struct {
 	workerPool     *ants.Pool
 	upgrader       *ws.Upgrader
 	keepConnTable  *ttlcache.Cache[string, gnet.Conn]
+	logger         Logger
 	onCloseHandler OnCloseHandlerFunc
 	onPingHandler  OnPingHandlerFunc
 	handler        HandlerFunc
@@ -47,6 +47,10 @@ func (s *Server) withDefault() {
 
 	if s.keepConnTable == nil {
 		WithConnTimeout(DefaultConnTimeout)(s)
+	}
+
+	if s.logger == nil {
+		WithLogger(DefaultLogger)(s)
 	}
 
 	if s.onCloseHandler == nil {
@@ -116,7 +120,7 @@ func (s *Server) ListenAndServe(opts ...gnet.Option) error {
 // ---- gnet event handler ----
 
 func (s *Server) OnBoot(eng gnet.Engine) gnet.Action {
-	log.Printf("[+] Listen addr: %s", s.addr)
+	s.logger.Infof("[+] Listen addr: %s", s.addr)
 	s.engine = eng
 	return gnet.None
 }
@@ -151,26 +155,28 @@ func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 
 	upgraderConn, ok := c.Context().(*Conn)
 	if !ok {
-		log.Printf("[-] invalid context, remote addr: %s", c.RemoteAddr())
+		s.logger.Errorf("[-] invalid context, remote addr: %s", c.RemoteAddr())
 		return gnet.None
 	}
 
 	// trying upgrader conn
 	if !upgraderConn.successUpgraded.Load() {
-		if _, err := s.upgrader.Upgrade(upgraderConn); err != nil {
-			log.Printf("[-] upgrade error: %s, remote: %s\n", err.Error(), c.RemoteAddr())
+		handshake, err := s.upgrader.Upgrade(upgraderConn)
+		if err != nil {
+			s.logger.Errorf("[-] upgrade error: %s, remote: %s\n", err.Error(), c.RemoteAddr())
 			_ = s.closeWS(upgraderConn, ws.StatusProtocolError, err)
 			return gnet.Close
 		}
 		upgraderConn.successUpgraded.Store(true)
 		upgraderConn.UpdateActive()
+		upgraderConn.Header = handshake.Header
 		return gnet.None
 	}
 
 	// waiting client message
 	messages, err := wsutil.ReadClientMessage(upgraderConn, nil)
 	if err != nil {
-		log.Printf("[-] read client message error: %s, remote: %s\n", err.Error(), c.RemoteAddr())
+		s.logger.Errorf("[-] read client message error: %s, remote: %s\n", err.Error(), c.RemoteAddr())
 		_ = s.closeWS(upgraderConn, ws.StatusUnsupportedData, err)
 		return gnet.Close
 	}

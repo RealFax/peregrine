@@ -16,21 +16,15 @@ import (
 type OptionFunc func(*Server)
 
 func WithContext(ctx context.Context) OptionFunc {
-	return func(s *Server) {
-		s.ctx = ctx
-	}
+	return func(s *Server) { s.ctx = ctx }
 }
 
 func WithWorkerPool(size int, options ants.Options) OptionFunc {
-	return func(s *Server) {
-		s.workerPool, _ = ants.NewPool(size, ants.WithOptions(options))
-	}
+	return func(s *Server) { s.workerPool, _ = ants.NewPool(size, ants.WithOptions(options)) }
 }
 
 func WithUpgrader(upgrader *ws.Upgrader) OptionFunc {
-	return func(s *Server) {
-		s.upgrader = upgrader
-	}
+	return func(s *Server) { s.upgrader = upgrader }
 }
 
 func WithConnTimeout(timeout time.Duration) OptionFunc {
@@ -41,22 +35,20 @@ func WithConnTimeout(timeout time.Duration) OptionFunc {
 	}
 }
 
+func WithLogger(logger Logger) OptionFunc {
+	return func(s *Server) { s.logger = logger }
+}
+
 func WithOnCloseHandler(handler OnCloseHandlerFunc) OptionFunc {
-	return func(s *Server) {
-		s.onCloseHandler = handler
-	}
+	return func(s *Server) { s.onCloseHandler = handler }
 }
 
 func WithOnPingHandler(handler OnPingHandlerFunc) OptionFunc {
-	return func(s *Server) {
-		s.onPingHandler = handler
-	}
+	return func(s *Server) { s.onPingHandler = handler }
 }
 
 func WithHandler(handler HandlerFunc) OptionFunc {
-	return func(s *Server) {
-		s.handler = handler
-	}
+	return func(s *Server) { s.handler = handler }
 }
 
 // ---------- client options ---------- //

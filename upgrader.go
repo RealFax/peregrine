@@ -5,6 +5,7 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/google/uuid"
 	"github.com/panjf2000/gnet/v2"
+	"net/http"
 	"sync/atomic"
 	"time"
 )
@@ -16,9 +17,12 @@ var (
 // Conn is upgraded websocket conn
 type Conn struct {
 	gnet.Conn
-	LastActive      *atomic.Int64 // atomic
 	successUpgraded *atomic.Bool
-	ID              string
+
+	LastActive *atomic.Int64 // atomic
+	// Header all request headers obtained during handshake
+	Header http.Header
+	ID     string
 
 	ctx context.Context
 }
