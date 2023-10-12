@@ -202,7 +202,7 @@ func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 			})
 			upgraderConn.UpdateActive()
 		case ws.OpClose:
-			_ = s.closeWS(upgraderConn, ws.StatusNormalClosure, nil)
+			s.onCloseHandler(upgraderConn, nil)
 			return gnet.Close
 		}
 
