@@ -125,7 +125,11 @@ func (s *Server) OnBoot(eng gnet.Engine) gnet.Action {
 	return gnet.None
 }
 
-func (s *Server) OnShutdown(_ gnet.Engine) {}
+func (s *Server) OnShutdown(e gnet.Engine) {
+	if err := e.Stop(s.ctx); err != nil {
+		s.logger.Errorf("gnet.OnShutdown error: %s", err)
+	}
+}
 
 func (s *Server) OnOpen(c gnet.Conn) ([]byte, gnet.Action) {
 	s.connNum.Add(1)
@@ -135,6 +139,9 @@ func (s *Server) OnOpen(c gnet.Conn) ([]byte, gnet.Action) {
 }
 
 func (s *Server) OnClose(c gnet.Conn, _ error) gnet.Action {
+	if c == nil {
+		return gnet.None
+	}
 	s.connNum.Add(-1)
 	// conn closed, remove conn in monitor list
 	s.keepConnTable.Delete(c.RemoteAddr().String())
