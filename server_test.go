@@ -42,7 +42,11 @@ func TestServer_ListenAndServer(t *testing.T) {
 		http.ListenAndServe("localhost:9090", nil)
 	}()
 
-	if err := server.ListenAndServe(gnet.WithMulticore(true)); err != nil {
+	if err := server.ListenAndServe(
+		gnet.WithMulticore(true),
+		gnet.WithReuseAddr(true),
+		gnet.WithReusePort(true),
+	); err != nil {
 		t.Fatal(err)
 	}
 }

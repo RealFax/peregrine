@@ -139,12 +139,11 @@ func (s *Server) OnOpen(c gnet.Conn) ([]byte, gnet.Action) {
 }
 
 func (s *Server) OnClose(c gnet.Conn, _ error) gnet.Action {
-	if c == nil {
-		return gnet.None
-	}
 	s.connNum.Add(-1)
 	// conn closed, remove conn in monitor list
-	s.keepConnTable.Delete(c.RemoteAddr().String())
+	if addr := c.RemoteAddr(); addr != nil {
+		s.keepConnTable.Delete(addr.String())
+	}
 	return gnet.None
 }
 
