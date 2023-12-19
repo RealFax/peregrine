@@ -31,6 +31,9 @@ func TestServer_ListenAndServer(t *testing.T) {
 			}),
 		}),
 		qWebsocket.WithHandler(Handler),
+		qWebsocket.WithOnCloseHandler(func(conn *qWebsocket.Conn, err error) {
+			t.Logf("RemoteAddr: %s close, reason: %v", conn.RemoteAddr(), err)
+		}),
 	)
 
 	// status monitor

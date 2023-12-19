@@ -153,7 +153,7 @@ func (s *Server) OnTick() (time.Duration, gnet.Action) {
 
 func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 	// reset conn ttl
-	s.keepConnTable.Set(c.RemoteAddr().String(), c, time.Second*5)
+	s.keepConnTable.Set(c.RemoteAddr().String(), c, ttlcache.DefaultTTL)
 
 	if c.Context() == nil {
 		c.SetContext(NewUpgraderConn(c))
