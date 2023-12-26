@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	qWebsocket "github.com/RealFax/q-websocket"
-	"github.com/RealFax/q-websocket/proto"
+	"github.com/RealFax/peregrine"
+	"github.com/RealFax/peregrine/proto"
 	"github.com/gobwas/ws"
 	"github.com/panjf2000/gnet/v2"
 	"os"
@@ -128,7 +128,7 @@ func main() {
 	})
 
 	engine := proto.New[Proto, ProtoType](instancePool.Alloc)
-	engine.RegisterDestroyProto(func(_ *qWebsocket.HandlerParams, proto proto.Proto[Proto, ProtoType]) {
+	engine.RegisterDestroyProto(func(_ *peregrine.HandlerParams, proto proto.Proto[Proto, ProtoType]) {
 		instancePool.Free(proto)
 	})
 
@@ -138,10 +138,10 @@ func main() {
 	engine.Register(ProtoQuitRoom, s.quitRoom)
 	engine.Register(ProtoSendMessage, s.sendMessage)
 
-	server := qWebsocket.NewServer(
+	server := peregrine.NewServer(
 		"tcp://127.0.0.1:8080",
-		qWebsocket.WithHandler(engine.UseHandler()),
-		qWebsocket.WithOnCloseHandler(func(conn *qWebsocket.Conn, _ error) {
+		peregrine.WithHandler(engine.UseHandler()),
+		peregrine.WithOnCloseHandler(func(conn *peregrine.Conn, _ error) {
 			s.offline(conn.ID)
 		}),
 	)

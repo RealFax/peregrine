@@ -1,4 +1,4 @@
-package qWebsocket
+package peregrine
 
 import (
 	"github.com/gobwas/ws"

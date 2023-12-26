@@ -1,4 +1,4 @@
-package qWebsocket
+package peregrine
 
 import (
 	"context"

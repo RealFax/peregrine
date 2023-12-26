@@ -3,7 +3,7 @@ package proto
 import (
 	"bytes"
 	"context"
-	qWebsocket "github.com/RealFax/q-websocket"
+	"github.com/RealFax/peregrine"
 	"github.com/gobwas/ws"
 	"github.com/pkg/errors"
 	"os"
@@ -16,7 +16,7 @@ type (
 	BrokerFunc[T any]                     func(request *Request[T]) error
 	RecoveryFunc[T any, K comparable]     func(protoKey K, request *Request[T], err any)
 	NewProtoFunc[T any, K comparable]     func() Proto[T, K]
-	DestroyProtoFunc[T any, K comparable] func(params *qWebsocket.HandlerParams, proto Proto[T, K])
+	DestroyProtoFunc[T any, K comparable] func(params *peregrine.HandlerParams, proto Proto[T, K])
 )
 
 type Engine[T any, K comparable] struct {
@@ -24,7 +24,7 @@ type Engine[T any, K comparable] struct {
 
 	state atomic.Int32
 
-	logger qWebsocket.Logger
+	logger peregrine.Logger
 
 	codec Codec[T, K]
 
@@ -42,7 +42,7 @@ type Engine[T any, K comparable] struct {
 	destroyProto DestroyProtoFunc[T, K]
 }
 
-func (e *Engine[T, K]) handlerError(params *qWebsocket.HandlerParams, err error) {
+func (e *Engine[T, K]) handlerError(params *peregrine.HandlerParams, err error) {
 	e.logger.Errorf("proto: handler error: %s\n", err.Error())
 
 	countAddr, ok := params.WsConn.Context().Value("ERR_COUNT").(*uint32)
@@ -70,10 +70,10 @@ func (e *Engine[T, K]) handlerError(params *qWebsocket.HandlerParams, err error)
 
 // handler
 //
-// impl the handler of q-websocket
+// impl the handler of peregrine
 //
 // Codec.Unmarshal proto -> find handler -> call brokers -> call handler
-func (e *Engine[T, K]) handler(params *qWebsocket.HandlerParams) {
+func (e *Engine[T, K]) handler(params *peregrine.HandlerParams) {
 	// check request payload size
 	if e.MaxPayloadSize() != 0 && uint64(len(params.Request)) >= e.MaxPayloadSize() {
 		e.handlerError(params, errors.Errorf("request too large, payload size: %d", len(params.Request)))
@@ -147,11 +147,11 @@ func (e *Engine[T, K]) handler(params *qWebsocket.HandlerParams) {
 
 }
 
-func (e *Engine[T, K]) UseLogger(logger qWebsocket.Logger) {
+func (e *Engine[T, K]) UseLogger(logger peregrine.Logger) {
 	e.logger = logger
 }
 
-func (e *Engine[T, K]) UseHandler() qWebsocket.HandlerFunc {
+func (e *Engine[T, K]) UseHandler() peregrine.HandlerFunc {
 	if e.state.Load() == 0 {
 		e.state.CompareAndSwap(0, 1)
 	}

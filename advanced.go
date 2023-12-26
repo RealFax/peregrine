@@ -1,7 +1,7 @@
-package qWebsocket
+package peregrine
 
 import (
-	"github.com/RealFax/q-websocket/internal/hack"
+	"github.com/RealFax/peregrine/internal/hack"
 	"github.com/gobwas/ws"
 	"net/http"
 	"net/url"

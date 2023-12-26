@@ -1,8 +1,8 @@
 package proto_test
 
 import (
-	qWebsocket "github.com/RealFax/q-websocket"
-	"github.com/RealFax/q-websocket/proto"
+	"github.com/RealFax/peregrine"
+	"github.com/RealFax/peregrine/proto"
 	"github.com/gobwas/ws"
 	"github.com/panjf2000/gnet/v2"
 	"testing"
@@ -31,9 +31,9 @@ func init() {
 }
 
 func TestEngine_Handler(t *testing.T) {
-	server := qWebsocket.NewServer(
+	server := peregrine.NewServer(
 		"tcp://127.0.0.1:10001",
-		qWebsocket.WithHandler(engine.UseHandler()),
+		peregrine.WithHandler(engine.UseHandler()),
 	)
 
 	if err := server.ListenAndServe(gnet.WithMulticore(true)); err != nil {

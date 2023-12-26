@@ -1,8 +1,8 @@
-package qWebsocket_test
+package peregrine_test
 
 import (
 	"fmt"
-	qWebsocket "github.com/RealFax/q-websocket"
+	"github.com/RealFax/peregrine"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/panjf2000/gnet/v2"
@@ -11,27 +11,27 @@ import (
 	"testing"
 )
 
-func Handler(req *qWebsocket.HandlerParams) {
+func Handler(req *peregrine.HandlerParams) {
 	// echo
 	wsutil.WriteServerText(req.Writer, req.Request)
 }
 
 func TestServer_ListenAndServer(t *testing.T) {
-	server := qWebsocket.NewServer(
+	server := peregrine.NewServer(
 		"tcp://127.0.0.1:9010",
-		qWebsocket.WithUpgrader(&ws.Upgrader{
-			OnRequest: qWebsocket.RequestProxy(func(req *url.URL) error {
+		peregrine.WithUpgrader(&ws.Upgrader{
+			OnRequest: peregrine.RequestProxy(func(req *url.URL) error {
 				return nil
 			}),
-			OnHost: qWebsocket.HostProxy(func(host string) error {
+			OnHost: peregrine.HostProxy(func(host string) error {
 				return nil
 			}),
-			OnHeader: qWebsocket.HeaderProxy(func(key, value string) error {
+			OnHeader: peregrine.HeaderProxy(func(key, value string) error {
 				return nil
 			}),
 		}),
-		qWebsocket.WithHandler(Handler),
-		qWebsocket.WithOnCloseHandler(func(conn *qWebsocket.Conn, err error) {
+		peregrine.WithHandler(Handler),
+		peregrine.WithOnCloseHandler(func(conn *peregrine.Conn, err error) {
 			t.Logf("RemoteAddr: %s close, reason: %v", conn.RemoteAddr(), err)
 		}),
 	)

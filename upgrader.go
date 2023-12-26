@@ -1,4 +1,4 @@
-package qWebsocket
+package peregrine
 
 import (
 	"context"
@@ -18,13 +18,17 @@ var (
 type Conn struct {
 	gnet.Conn
 	successUpgraded *atomic.Bool
+	LastActive      *atomic.Int64 // atomic
 
-	LastActive *atomic.Int64 // atomic
 	// Header all request headers obtained during handshake
 	Header http.Header
 	ID     string
 
 	ctx context.Context
+}
+
+func (c *Conn) updateActive() {
+	c.LastActive.Store(time.Now().Unix())
 }
 
 func (c *Conn) Context() context.Context {
@@ -33,10 +37,6 @@ func (c *Conn) Context() context.Context {
 
 func (c *Conn) SetContext(ctx context.Context) {
 	c.ctx = ctx
-}
-
-func (c *Conn) UpdateActive() {
-	c.LastActive.Store(time.Now().Unix())
 }
 
 func NewUpgraderConn(conn gnet.Conn) *Conn {

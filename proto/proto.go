@@ -1,6 +1,6 @@
 package proto
 
-import qWebsocket "github.com/RealFax/q-websocket"
+import "github.com/RealFax/peregrine"
 
 type Proto[T any, K comparable] interface {
 	// Key realizes the value that returns Proto can be comparable
@@ -36,7 +36,7 @@ type Resetter interface {
 // - newProto should be return a Proto instance
 func New[T any, K comparable](newProto NewProtoFunc[T, K]) *Engine[T, K] {
 	engine := &Engine[T, K]{
-		logger:   qWebsocket.DefaultLogger,
+		logger:   peregrine.DefaultLogger,
 		codec:    &CodecJSON[T, K]{},
 		brokers:  make([]BrokerFunc[T], 0),
 		handlers: make(map[K]HandlerFunc[T]),

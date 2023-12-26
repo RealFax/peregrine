@@ -1,4 +1,4 @@
-package qWebsocket
+package peregrine
 
 import (
 	"context"
@@ -36,6 +36,7 @@ func (s *Server) withDefault() {
 
 	if s.workerPool == nil {
 		WithWorkerPool(1024*1024, ants.Options{
+			PreAlloc:       true,
 			ExpiryDuration: DefaultWorkerPoolExpiry,
 			Nonblocking:    DefaultWorkerPoolNonBlocking,
 		})(s)
@@ -83,7 +84,6 @@ func (s *Server) setupTimeoutHandler() {
 		reason ttlcache.EvictionReason,
 		item *ttlcache.Item[string, gnet.Conn],
 	) {
-		s.connNum.Add(-1)
 		upgraderConn, ok := item.Value().Context().(*Conn)
 		if !ok {
 			_ = item.Value().Close()
@@ -174,7 +174,7 @@ func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 			return gnet.Close
 		}
 		upgraderConn.successUpgraded.Store(true)
-		upgraderConn.UpdateActive()
+		upgraderConn.updateActive()
 		upgraderConn.Header = handshake.Header
 		return gnet.None
 	}
@@ -195,7 +195,7 @@ func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 			_ = s.workerPool.Submit(func() {
 				s.onPingHandler(upgraderConn)
 			})
-			upgraderConn.UpdateActive()
+			upgraderConn.updateActive()
 		case ws.OpText, ws.OpBinary:
 			// async handle
 			_ = s.workerPool.Submit(func() {
@@ -206,7 +206,7 @@ func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 					WsConn:  upgraderConn,
 				})
 			})
-			upgraderConn.UpdateActive()
+			upgraderConn.updateActive()
 		case ws.OpClose:
 			s.onCloseHandler(upgraderConn, nil)
 			return gnet.Close

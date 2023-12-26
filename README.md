@@ -1,9 +1,9 @@
-# q-websocket
-"low performance" websocket implemented based on panjf2000/gnet and gobwas/ws
+# peregrine
+a "high-performance" websocket implementation based on `panjf2000/gnet` and `gobwas/ws`, providing low-level API
 
 # usage
 ```
-go get github.com/RealFax/q-websocket@latest
+go get github.com/RealFax/peregrine@latest
 ```
 
 ## quick start
@@ -14,7 +14,7 @@ go get github.com/RealFax/q-websocket@latest
 package main
 
 import (
-	qWebsocket "github.com/RealFax/q-websocket"
+	"github.com/RealFax/peregrine"
 	
 	"github.com/gobwas/ws/wsutil"
 	"github.com/panjf2000/gnet/v2"
@@ -22,14 +22,14 @@ import (
 	"log"
 )
 
-func echo(req *qWebsocket.HandlerParams) {
+func echo(req *peregrine.HandlerParams) {
 	wsutil.WriteServerText(req.Writer, req.Request)
 }
 
 func main() {
-	server := qWebsocket.NewServer(
+	server := peregrine.NewServer(
 		"tcp://0.0.0.0:9090",
-		qWebsocket.WithHandler(echo),
+		peregrine.WithHandler(echo),
 	)
 
 	if err := server.ListenAndServe(gnet.WithMulticore(true)); err != nil {
@@ -39,7 +39,7 @@ func main() {
 ```
 
 ## using proto
-_proto is a low-level handler built into q-websocket, providing simple router_
+_proto is a low-level handler built into peregrine, providing simple router_
 
 ```go
 // using proto 
@@ -47,8 +47,8 @@ _proto is a low-level handler built into q-websocket, providing simple router_
 package main
 
 import (
-	qWebsocket "github.com/RealFax/q-websocket"
-	"github.com/RealFax/q-websocket/proto"
+	"github.com/RealFax/peregrine"
+	"github.com/RealFax/peregrine/proto"
 	
 	"github.com/gobwas/ws"
 	"github.com/panjf2000/gnet/v2"
@@ -92,9 +92,9 @@ func main() {
 		r.WriteClose(ws.StatusGoingAway, "")
 	})
 
-	server := qWebsocket.NewServer(
+	server := peregrine.NewServer(
 		"tcp://127.0.0.1:9090",
-		qWebsocket.WithHandler(engine.UseHandler()),
+		peregrine.WithHandler(engine.UseHandler()),
 	)
 
 	if err := server.ListenAndServe(gnet.WithMulticore(true)); err != nil {
@@ -103,4 +103,4 @@ func main() {
 }
 ```
 
-more usage see: [Example](https://github.com/RealFax/q-websocket/tree/master/example)
+more usage see: [Example](https://github.com/RealFax/peregrine/tree/master/example)
