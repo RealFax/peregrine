@@ -1,4 +1,4 @@
-# peregrine
+# Peregrine
 a "high-performance" websocket implementation based on `panjf2000/gnet` and `gobwas/ws`, providing low-level API
 
 # usage
