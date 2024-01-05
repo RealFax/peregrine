@@ -29,7 +29,7 @@ func WithUpgrader(upgrader *ws.Upgrader) OptionFunc {
 
 func WithConnTimeout(timeout time.Duration) OptionFunc {
 	return func(s *Server) {
-		s.keepConnTable = ttlcache.New[string, gnet.Conn](
+		s.connTable = ttlcache.New[string, gnet.Conn](
 			ttlcache.WithTTL[string, gnet.Conn](timeout),
 		)
 	}

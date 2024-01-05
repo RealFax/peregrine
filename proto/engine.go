@@ -11,12 +11,16 @@ import (
 	"sync/atomic"
 )
 
+const (
+	KeyErrorCount = "peregrine_proto_error_count"
+)
+
 type (
 	HandlerFunc[T any]                    func(request *Request[T])
 	BrokerFunc[T any]                     func(request *Request[T]) error
 	RecoveryFunc[T any, K comparable]     func(protoKey K, request *Request[T], err any)
 	NewProtoFunc[T any, K comparable]     func() Proto[T, K]
-	DestroyProtoFunc[T any, K comparable] func(params *peregrine.HandlerParams, proto Proto[T, K])
+	DestroyProtoFunc[T any, K comparable] func(params *peregrine.Packet, proto Proto[T, K])
 )
 
 type Engine[T any, K comparable] struct {
@@ -42,26 +46,22 @@ type Engine[T any, K comparable] struct {
 	destroyProto DestroyProtoFunc[T, K]
 }
 
-func (e *Engine[T, K]) handlerError(params *peregrine.HandlerParams, err error) {
+func (e *Engine[T, K]) handlerError(packet *peregrine.Packet, err error) {
 	e.logger.Errorf("proto: handler error: %s\n", err.Error())
 
-	countAddr, ok := params.WsConn.Context().Value("ERR_COUNT").(*uint32)
-	if !ok {
+	counter, ready := peregrine.TryAssertKeys[*uint32](packet.Conn, KeyErrorCount)
+	if !ready {
 		// init ERR_COUNT
 		addr := uint32(1)
-		params.WsConn.SetContext(context.WithValue(
-			params.WsConn.Context(),
-			"ERR_COUNT",
-			&addr,
-		))
+		packet.Conn.Set(KeyErrorCount, &addr)
 		return
 	}
 
-	count := atomic.AddUint32(countAddr, 1)
+	count := atomic.AddUint32(counter, 1)
 	if count >= e.MaxErrorCount() {
-		defer params.WsConn.Close()
+		defer packet.Conn.Close()
 		ws.WriteFrame(
-			params.Writer,
+			packet.Conn,
 			ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusGoingAway, "too many error")),
 		)
 		return
@@ -73,10 +73,10 @@ func (e *Engine[T, K]) handlerError(params *peregrine.HandlerParams, err error) 
 // impl the handler of peregrine
 //
 // Codec.Unmarshal proto -> find handler -> call brokers -> call handler
-func (e *Engine[T, K]) handler(params *peregrine.HandlerParams) {
+func (e *Engine[T, K]) handler(packet *peregrine.Packet) {
 	// check request payload size
-	if e.MaxPayloadSize() != 0 && uint64(len(params.Request)) >= e.MaxPayloadSize() {
-		e.handlerError(params, errors.Errorf("request too large, payload size: %d", len(params.Request)))
+	if e.MaxPayloadSize() != 0 && uint64(len(packet.Request)) >= e.MaxPayloadSize() {
+		e.handlerError(packet, errors.Errorf("request too large, payload size: %d", len(packet.Request)))
 		return
 	}
 
@@ -84,34 +84,33 @@ func (e *Engine[T, K]) handler(params *peregrine.HandlerParams) {
 
 	// if registered destroyProto, defer called
 	if e.destroyProto != nil {
-		defer e.destroyProto(params, proto)
+		defer e.destroyProto(packet, proto)
 	}
 
 	var err error
-	if err = e.codec.Unmarshal(params.WsConn.ID, bytes.NewReader(params.Request), proto); err != nil {
-		e.handlerError(params, errors.Wrap(err, "codec error"))
+	if err = e.codec.Unmarshal(packet.Conn.ID, bytes.NewReader(packet.Request), proto); err != nil {
+		e.handlerError(packet, errors.Wrap(err, "codec error"))
 		return
 	}
 
 	handler, ok := e.handlers[proto.Key()]
 	if !ok {
-		e.handlerError(params, errors.Errorf("no %v handler", proto.Key()))
+		e.handlerError(packet, errors.Errorf("no %v handler", proto.Key()))
 		return
 	}
 
 	req := &Request[T]{
-		Context:    context.Background(),
-		OpCode:     params.OpCode,
-		Writer:     params.Writer,
-		Conn:       params.WsConn,
-		Request:    proto.Self(),
-		RawRequest: params.Request,
+		Context: context.Background(),
+		OpCode:  packet.OpCode,
+		Conn:    packet.Conn,
+		Request: proto.Self(),
+		Payload: packet.Request,
 	}
 
 	// call brokers
 	for _, broker := range e.brokers {
 		if err = broker(req); err != nil {
-			e.handlerError(params, errors.Wrap(err, "called broker error"))
+			e.handlerError(packet, errors.Wrap(err, "called broker error"))
 			return
 		}
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 type ClientConn struct {
-	state atomic.Bool
+	state *atomic.Bool
 	conn  net.Conn
 }
 

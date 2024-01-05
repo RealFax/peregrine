@@ -8,23 +8,23 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"github.com/panjf2000/gnet/v2"
 	"github.com/pkg/errors"
-	"sync/atomic"
 	"time"
 )
 
 type Server struct {
-	connNum atomic.Int64
-	addr    string
+	addr string
 
-	ctx            context.Context
-	engine         gnet.Engine
-	workerPool     *ants.Pool
-	upgrader       *ws.Upgrader
-	keepConnTable  *ttlcache.Cache[string, gnet.Conn]
-	logger         Logger
+	ctx        context.Context
+	engine     gnet.Engine
+	workerPool *ants.Pool
+	upgrader   *ws.Upgrader
+	connTable  *ttlcache.Cache[string, gnet.Conn]
+	logger     Logger
+
 	onCloseHandler OnCloseHandlerFunc
 	onPingHandler  OnPingHandlerFunc
-	handler        HandlerFunc
+
+	handler HandlerFunc
 }
 
 func (s *Server) withDefault() {
@@ -37,8 +37,8 @@ func (s *Server) withDefault() {
 	if s.workerPool == nil {
 		WithWorkerPool(1024*1024, ants.Options{
 			PreAlloc:       true,
-			ExpiryDuration: DefaultWorkerPoolExpiry,
-			Nonblocking:    DefaultWorkerPoolNonBlocking,
+			ExpiryDuration: 10 * time.Second,
+			Nonblocking:    true,
 		})(s)
 	}
 
@@ -46,8 +46,8 @@ func (s *Server) withDefault() {
 		WithUpgrader(emptyUpgrader)(s)
 	}
 
-	if s.keepConnTable == nil {
-		WithConnTimeout(DefaultConnTimeout)(s)
+	if s.connTable == nil {
+		WithConnTimeout(15 * time.Second)(s)
 	}
 
 	if s.logger == nil {
@@ -67,7 +67,7 @@ func (s *Server) withDefault() {
 	}
 }
 
-func (s *Server) closeWS(conn *Conn, statusCode ws.StatusCode, reason error) error {
+func (s *Server) CloseConn(conn *Conn, statusCode ws.StatusCode, reason error) error {
 	defer s.onCloseHandler(conn, reason)
 	return ws.WriteFrame(conn, ws.NewCloseFrame(ws.NewCloseFrameBody(statusCode, func() string {
 		if reason != nil {
@@ -77,9 +77,9 @@ func (s *Server) closeWS(conn *Conn, statusCode ws.StatusCode, reason error) err
 	}())))
 }
 
-func (s *Server) setupTimeoutHandler() {
+func (s *Server) StartTimeoutScanner() {
 	// on connect timeout handler
-	s.keepConnTable.OnEviction(func(
+	s.connTable.OnEviction(func(
 		_ context.Context,
 		reason ttlcache.EvictionReason,
 		item *ttlcache.Item[string, gnet.Conn],
@@ -89,19 +89,19 @@ func (s *Server) setupTimeoutHandler() {
 			_ = item.Value().Close()
 			return
 		}
-		_ = s.closeWS(upgraderConn, ws.StatusGoingAway, errors.New("timeout"))
+		_ = s.CloseConn(upgraderConn, ws.StatusGoingAway, errors.New("timeout"))
 	})
 
 	// start monitor connect ttl
-	go s.keepConnTable.Start()
+	go s.connTable.Start()
 	go func() {
-		time.Sleep(time.Hour * 1)
-		s.keepConnTable.DeleteExpired()
+		time.Sleep(1 * time.Hour)
+		s.connTable.DeleteExpired()
 	}()
 }
 
-func (s *Server) Online() int64 {
-	return s.connNum.Load()
+func (s *Server) ConnTableLen() int {
+	return s.connTable.Len()
 }
 
 func (s *Server) CountConnections() int {
@@ -113,8 +113,8 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) ListenAndServe(opts ...gnet.Option) error {
-	s.setupTimeoutHandler()
-	return gnet.Run(s, s.addr, opts...)
+	s.StartTimeoutScanner()
+	return gnet.Run(s, s.addr, append(opts, gnet.WithLogger(s.logger))...)
 }
 
 // ---- gnet event handler ----
@@ -132,17 +132,15 @@ func (s *Server) OnShutdown(e gnet.Engine) {
 }
 
 func (s *Server) OnOpen(c gnet.Conn) ([]byte, gnet.Action) {
-	s.connNum.Add(1)
 	// monitor conn timeout
-	s.keepConnTable.Set(c.RemoteAddr().String(), c, ttlcache.DefaultTTL)
+	s.connTable.Set(c.RemoteAddr().String(), c, ttlcache.DefaultTTL)
 	return nil, gnet.None
 }
 
 func (s *Server) OnClose(c gnet.Conn, _ error) gnet.Action {
-	s.connNum.Add(-1)
 	// conn closed, remove conn in monitor list
 	if addr := c.RemoteAddr(); addr != nil {
-		s.keepConnTable.Delete(addr.String())
+		s.connTable.Delete(addr.String())
 	}
 	return gnet.None
 }
@@ -153,37 +151,38 @@ func (s *Server) OnTick() (time.Duration, gnet.Action) {
 
 func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 	// reset conn ttl
-	s.keepConnTable.Set(c.RemoteAddr().String(), c, ttlcache.DefaultTTL)
+	s.connTable.Set(c.RemoteAddr().String(), c, ttlcache.DefaultTTL)
 
 	if c.Context() == nil {
 		c.SetContext(NewUpgraderConn(c))
 	}
 
-	upgraderConn, ok := c.Context().(*Conn)
+	conn, ok := c.Context().(*Conn)
 	if !ok {
 		s.logger.Errorf("[-] invalid context, remote addr: %s", c.RemoteAddr())
 		return gnet.None
 	}
 
 	// trying upgrader conn
-	if !upgraderConn.successUpgraded.Load() {
-		handshake, err := s.upgrader.Upgrade(upgraderConn)
+	if !conn.readyUpgraded.Load() {
+		handshake, err := s.upgrader.Upgrade(conn)
 		if err != nil {
 			s.logger.Errorf("[-] upgrade error: %s, remote: %s\n", err.Error(), c.RemoteAddr())
-			_ = s.closeWS(upgraderConn, ws.StatusProtocolError, err)
+			_ = s.CloseConn(conn, ws.StatusProtocolError, err)
 			return gnet.Close
 		}
-		upgraderConn.successUpgraded.Store(true)
-		upgraderConn.updateActive()
-		upgraderConn.Header = handshake.Header
+
+		conn.readyUpgraded.Store(true)
+		conn.Header = handshake.Header
+		conn.keepAlive()
 		return gnet.None
 	}
 
 	// waiting client message
-	messages, err := wsutil.ReadClientMessage(upgraderConn, nil)
+	messages, err := wsutil.ReadClientMessage(conn, nil)
 	if err != nil {
 		s.logger.Errorf("[-] read client message error: %s, remote: %s\n", err.Error(), c.RemoteAddr())
-		_ = s.closeWS(upgraderConn, ws.StatusUnsupportedData, err)
+		_ = s.CloseConn(conn, ws.StatusUnsupportedData, err)
 		return gnet.Close
 	}
 
@@ -193,25 +192,26 @@ func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 		case ws.OpPing:
 			// async handle
 			_ = s.workerPool.Submit(func() {
-				s.onPingHandler(upgraderConn)
+				s.onPingHandler(conn)
 			})
-			upgraderConn.updateActive()
+			conn.keepAlive()
 		case ws.OpText, ws.OpBinary:
 			// async handle
 			_ = s.workerPool.Submit(func() {
-				s.handler(&HandlerParams{
+				s.handler(&Packet{
 					OpCode:  message.OpCode,
 					Request: message.Payload,
-					Writer:  upgraderConn,
-					WsConn:  upgraderConn,
+					Conn:    conn,
 				})
 			})
-			upgraderConn.updateActive()
+			conn.keepAlive()
 		case ws.OpClose:
-			s.onCloseHandler(upgraderConn, nil)
+			s.onCloseHandler(conn, nil)
+			return gnet.Close
+		default:
+			_ = s.CloseConn(conn, ws.StatusUnsupportedData, errors.New("unsupported opcode"))
 			return gnet.Close
 		}
-
 	}
 	return gnet.None
 }

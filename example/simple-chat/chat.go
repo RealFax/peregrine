@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/RealFax/peregrine"
 	"github.com/RealFax/peregrine/proto"
-	"github.com/gobwas/ws"
 	"github.com/panjf2000/gnet/v2"
 	"os"
 	"os/signal"
@@ -95,7 +94,7 @@ func (s *service) joinRoom(req *proto.Request[Proto]) {
 				}
 				go func() {
 					b, _ := json.Marshal(msg)
-					ws.WriteFrame(req.Writer, ws.NewTextFrame(b))
+					req.WriteText(b)
 				}()
 			}
 		}()
@@ -128,7 +127,7 @@ func main() {
 	})
 
 	engine := proto.New[Proto, ProtoType](instancePool.Alloc)
-	engine.RegisterDestroyProto(func(_ *peregrine.HandlerParams, proto proto.Proto[Proto, ProtoType]) {
+	engine.RegisterDestroyProto(func(_ *peregrine.Packet, proto proto.Proto[Proto, ProtoType]) {
 		instancePool.Free(proto)
 	})
 

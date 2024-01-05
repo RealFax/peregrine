@@ -63,10 +63,10 @@ func (c *Client) Dial(header *ClientHeader) (*ClientConn, error) {
 	}
 
 	return &ClientConn{
-		state: func() atomic.Bool {
+		state: func() *atomic.Bool {
 			b := atomic.Bool{}
 			b.Store(true)
-			return b
+			return &b
 		}(),
 		conn: conn,
 	}, nil

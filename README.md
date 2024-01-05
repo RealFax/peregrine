@@ -49,10 +49,11 @@ package main
 import (
 	"github.com/RealFax/peregrine"
 	"github.com/RealFax/peregrine/proto"
-	
+	"github.com/gobwas/ws/wsflate"
+
 	"github.com/gobwas/ws"
 	"github.com/panjf2000/gnet/v2"
-	
+
 	"log"
 	"strings"
 )
@@ -104,3 +105,8 @@ func main() {
 ```
 
 more usage see: [Example](https://github.com/RealFax/peregrine/tree/master/example)
+
+## roadmap
+
+- [ ] RFC7692 support
+- [ ] Performance test chart

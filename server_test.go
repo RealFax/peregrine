@@ -11,9 +11,9 @@ import (
 	"testing"
 )
 
-func Handler(req *peregrine.HandlerParams) {
+func Handler(req *peregrine.Packet) {
 	// echo
-	wsutil.WriteServerText(req.Writer, req.Request)
+	wsutil.WriteServerText(req.Conn, req.Request)
 }
 
 func TestServer_ListenAndServer(t *testing.T) {
@@ -39,7 +39,7 @@ func TestServer_ListenAndServer(t *testing.T) {
 	// status monitor
 	go func() {
 		http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-			w.Write([]byte(fmt.Sprintf("Online: %d", server.Online())))
+			w.Write([]byte(fmt.Sprintf("Online: %d", server.ConnTableLen())))
 		})
 		t.Log("[+] Monitor server: http://localhost:9090")
 		http.ListenAndServe("localhost:9090", nil)
