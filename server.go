@@ -12,6 +12,8 @@ import (
 )
 
 type Server struct {
+	timeout time.Duration
+
 	addr string
 
 	ctx        context.Context
@@ -89,6 +91,13 @@ func (s *Server) StartTimeoutScanner() {
 			_ = item.Value().Close()
 			return
 		}
+
+		// invalid eviction, put back ttlcache
+		if upgraderConn.LastActive.Load() > time.Now().Add(-s.timeout).Unix() {
+			s.connTable.Set(item.Key(), item.Value(), ttlcache.DefaultTTL)
+			return
+		}
+
 		_ = s.CloseConn(upgraderConn, ws.StatusGoingAway, errors.New("timeout"))
 	})
 
@@ -151,7 +160,7 @@ func (s *Server) OnTick() (time.Duration, gnet.Action) {
 
 func (s *Server) OnTraffic(c gnet.Conn) gnet.Action {
 	// reset conn ttl
-	s.connTable.Set(c.RemoteAddr().String(), c, ttlcache.DefaultTTL)
+	s.connTable.Touch(c.RemoteAddr().String())
 
 	if c.Context() == nil {
 		c.SetContext(NewUpgraderConn(c))

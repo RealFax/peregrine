@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 )
 
 func Handler(req *peregrine.Packet) {
@@ -34,6 +35,7 @@ func TestServer_ListenAndServer(t *testing.T) {
 		peregrine.WithOnCloseHandler(func(conn *peregrine.Conn, err error) {
 			t.Logf("RemoteAddr: %s close, reason: %v", conn.RemoteAddr(), err)
 		}),
+		peregrine.WithConnTimeout(15*time.Second),
 	)
 
 	// status monitor
