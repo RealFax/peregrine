@@ -3,7 +3,6 @@ package peregrine
 import (
 	"bytes"
 	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 )
 
 type (
@@ -22,6 +21,6 @@ func EmptyHandler(_ *Packet)               {}
 func EmptyOnCloseHandler(_ *Conn, _ error) {}
 func DefaultOnPingHandler(c *Conn) {
 	buf := &bytes.Buffer{}
-	_ = wsutil.WriteServerMessage(buf, ws.OpPong, nil)
+	_ = ws.WriteFrame(buf, ws.NewPongFrame([]byte{}))
 	_ = c.AsyncWrite(buf.Bytes(), nil)
 }
